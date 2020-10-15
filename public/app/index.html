@@ -4,6 +4,9 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width,minimum-scale=1.0,maximum-scale=1.0,user-scalable=no" />
   <script type="text/javascript" src="/js/core.js"></script>
+  <script type="text/javascript" src="/js/layzr.min.js"></script>
+  <script type="text/javascript" src="/js/qrcode.min.js"></script>
+  <link rel="stylesheet" type="text/css" href="css/core.css">
   <title>IPA Server</title>
   <style type="text/css">
     * {
@@ -18,7 +21,7 @@
       align-items: center;
       color: #A9B1B3;
       font-size: 1em;
-      padding: 4em 0;
+      padding: 4em 0 0 0;
       font-weight: 100;
     }
     #info .name {
@@ -27,11 +30,15 @@
       font-weight: 500;
       margin: 1em 0;
     }
-    #info img {
+    #info img.icon {
       width: 7.5em;
       height: 7.5em;
       border-radius: 20%;
       box-shadow: 0 0 4px #eee;
+    }
+    #info .qrcode img {
+      margin: 1em;
+      width: 10rem;
     }
     #info .install {
       background: #1890ff;
@@ -46,7 +53,12 @@
 </head>
 <body>
   <div id="info"></div>
+  <div id="list"></div>
   <script type="text/javascript">
+
+    // init lazy load
+    const instance = Layzr()
+
     function query() {
       const obj = {}
       window.location.search.split('?')[1].split('&').map(row => {
@@ -55,15 +67,37 @@
       })
       return obj
     }
+
+    function createQRCode() {
+      // create qrcode
+      var qrcode = new QRCode(document.querySelector("#info .qrcode"), {
+        text: window.location.href,
+        width: 256,
+        height: 256,
+        colorDark : "#000000",
+        colorLight : "#ffffff",
+        correctLevel : QRCode.CorrectLevel.H
+      });
+    }
+
     function loadInfo() {
-      IPA.fetch(`/api/info/${query().id}`).then(row => {
+
+      IPA.fetch(`/api/info/${query().id}?v=${parseInt(new Date().getTime() / 1000)}`).then(row => {
         document.querySelector('#info').innerHTML = `
-          <img src="${row.webIcon}" alt="">
+          <img class="icon" src="${row.webIcon}" alt="">
           <div class="name">${row.name}</div>
+          <div>${row.channel && IPA.langString('Channel') + ': ' + row.channel || ''}</div>
           <div>${IPA.langString('Beta')} - ${row.version}(Build ${row.build}) - ${IPA.sizeStr(row.size)}</div>
           <div class='date'>${IPA.langString('Upload Date: ')}${row.date}</div>
+          <div class="qrcode"></div>
           <div onclick="onClickInstall('${row.plist}')" class="install">${IPA.langString('Download and Install')}</div>
         `
+        document.querySelector('#list').innerHTML = row.history.map(row => IPA.createItem(row)).join('')
+
+        createQRCode();
+
+        // start lazy load
+        instance.update().check().handlers(true)
       })
     }
     function onClickInstall(plist) {

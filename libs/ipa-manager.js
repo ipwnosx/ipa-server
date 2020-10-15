@@ -28,13 +28,30 @@ const iconPath = (publicURL, row) => {
   }
 }
 
-const list = (publicURL) => appList.map(row => Object.assign({}, row, {
+const itemInfo = (row, publicURL) => Object.assign({}, row, {
   ipa: `${config.publicURL || publicURL}/${row.identifier}/${row.id}/ipa.ipa`,
   icon: `${config.publicURL || publicURL}/${iconPath(publicURL, row)}`,
   plist: `${config.publicURL || publicURL}/plist/${row.id}.plist`,
   webIcon: `/${iconPath(publicURL, row)}`, // to display on web
   date: moment(row.date).fromNow(),
-}))
+})
+
+const list = (publicURL) => {
+
+  const backList = []
+
+  appList.map(row => itemInfo(row, publicURL)).map(row => {
+    let app = backList.find(r => r.identifier === row.identifier)
+    if (!app) {
+      app = row
+      backList.push(app)
+    }
+    app.history = app.history || []
+    app.history.push(Object.assign({}, row, {history: undefined, current: row.id===app.id}))
+  })
+
+  return backList
+}
 
 const decompress = (opt) => new Promise((resolve, reject) => {
   const unzipper = new DecompressZip(opt.file)
@@ -53,8 +70,8 @@ const add = async (file) => {
   let plistFile, iconFiles = []
 
   // unzip files
-  const newIconRegular = /Payload\/\w*\.app\/AppIcon-?(\d+(\.\d+)?)x(\d+(\.\d+)?)(@\dx)?.*\.png$/
-  const oldIconRegular = /Payload\/\w*\.app\/Icon-?(\d+(\.\d+)?)?.png$/
+  const newIconRegular = /Payload\/.*\.app\/AppIcon-?(\d+(\.\d+)?)x(\d+(\.\d+)?)(@\dx)?.*\.png$/
+  const oldIconRegular = /Payload\/.*\.app\/Icon-?(\d+(\.\d+)?)?.png$/
   await fs.remove(tmpDir)
   await decompress({
     file: file,
@@ -113,6 +130,7 @@ const add = async (file) => {
     date: new Date(),
     size: (await fs.lstat(file)).size,
     noneIcon: !iconFile,
+    channel: info['channel'],
   }
   appList.unshift(app)
   await fs.writeJson(appListFile, appList)
@@ -133,7 +151,16 @@ const add = async (file) => {
   await fs.remove(tmpDir)
 }
 
-const find = (id, publicURL) => list(publicURL).find(row => row.id === id)
+const find = (id, publicURL) => {
+  const row = itemInfo(appList.find(row => row.id === id), publicURL)
+  if (!row) { return {} }
+
+  row.history = appList.filter(r => r.identifier === row.identifier).map(r => Object.assign({}, itemInfo(r, publicURL), {
+    current: r.id === row.id,
+  }))
+
+  return row
+}
 
 module.exports = {
   list,

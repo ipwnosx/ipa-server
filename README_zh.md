@@ -43,31 +43,43 @@ version: "2"
 
 services:
   web:
-    build: .
+    image: ineva/ipa-server:latest
     container_name: ipa-server
     restart: always
     environment:
       - NODE_ENV=production
       - PUBLIC_URL=https://<YOUR_DOMAIN>
-    ports:
-      - "9008:8080"
     volumes:
       - "/docker/data/ipa-server:/app/upload"
   caddy:
-    image: ineva/caddy:0.10.3
+    image: abiosoft/caddy:0.11.5
     restart: always
-    network_mode: host
+    ports:
+      - "80:80"
+      - "443:443"
     entrypoint: |
       sh -c 'echo "$$CADDY_CONFIG" > /etc/Caddyfile && /usr/bin/caddy --conf /etc/Caddyfile --log stdout'
     environment:
       CADDY_CONFIG: |
         <YOUR_DOMAIN> {
           gzip
-          proxy / localhost:9008
+          proxy / web:8080
         }
 ```
 
 * 现在你可以使用浏览器访问 *https://\<YOUR_DOMAIN\>*
+
+
+# 上传访问控制
+
+服务端:
+
+添加系统环境变量 `ACCESS_KEY` 作为密码。
+
+客户端:
+
+浏览器访问: https://\<YOUR_DOMAIN\>/key.html?key=\<ACCESS_KEY\>
+
 
 首页 | 详情 |
  --- | ---

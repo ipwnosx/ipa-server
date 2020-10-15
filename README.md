@@ -27,7 +27,7 @@ $ docker-compose up -d
 
 Open <http://<HOST_NAME>:9008> in your browser.
 
-# Deploy
+# Docker Deploy
 
 * This server is not included SSL certificate. It must run behide the reverse proxy with HTTPS.
 
@@ -41,31 +41,51 @@ version: "2"
 
 services:
   web:
-    build: .
+    image: ineva/ipa-server:latest
     container_name: ipa-server
     restart: always
     environment:
       - NODE_ENV=production
       - PUBLIC_URL=https://<YOUR_DOMAIN>
-    ports:
-      - "9008:8080"
     volumes:
       - "/docker/data/ipa-server:/app/upload"
   caddy:
-    image: ineva/caddy:0.10.3
+    image: abiosoft/caddy:0.11.5
     restart: always
-    network_mode: host
+    ports:
+      - "80:80"
+      - "443:443"
     entrypoint: |
       sh -c 'echo "$$CADDY_CONFIG" > /etc/Caddyfile && /usr/bin/caddy --conf /etc/Caddyfile --log stdout'
     environment:
       CADDY_CONFIG: |
         <YOUR_DOMAIN> {
           gzip
-          proxy / localhost:9008
+          proxy / web:8080
         }
 ```
 
+# Deploy Without Docker
+
+```shell
+# install node.js first
+npm install
+npm start
+```
+
+
 * now you can access *https://\<YOUR_DOMAIN\>* in your browser.
+
+# Upload Access Control
+
+Server side:
+
+Add `ACCESS_KEY` to system environment as password.
+
+Client side:
+
+Browser open: https://\<YOUR_DOMAIN\>/key.html?key=\<ACCESS_KEY\>
+
 
 Home | Detail |
  --- | ---
